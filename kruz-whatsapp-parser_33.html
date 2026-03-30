@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kruz — Parser WhatsApp</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222;
+    --border: #2e2e2e;
+    --accent: #c8a96e;
+    --accent2: #e8c98e;
+    --text: #f0ede8;
+    --muted: #888;
+    --green: #4caf7d;
+    --red: #e05c5c;
+    --blue: #5b8dee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 56px;
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-right: 32px;
+  }
+  .nav-tab {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    user-select: none;
+  }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .nav-tab:hover:not(.active) { color: var(--text); }
+
+  /* VIEWS */
+  .view { display: none; padding: 32px; max-width: 1100px; margin: 0 auto; }
+  .view.active { display: block; }
+
+  /* SECTION HEADER */
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .section-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+  /* PARSER VIEW */
+  .parse-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media(max-width:800px){ .parse-layout { grid-template-columns:1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 14px;
+    resize: vertical;
+    min-height: 320px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  .sender-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .sender-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s;
+    user-select: none;
+  }
+  .sender-chip.active {
+    background: var(--accent);
+    color: #0f0f0f;
+    border-color: var(--accent);
+  }
+  .sender-chip-add {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .sender-chip-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-primary { background: var(--accent); color: #0f0f0f; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover { opacity: .9; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+  /* RESULT CARDS */
+  .results-grid { display: flex; flex-direction: column; gap: 16px; }
+  .order-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .order-card:hover { border-color: var(--accent); }
+  .order-card.removed { opacity: .4; border-style: dashed; }
+  .order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: #1e1e1e;
+  }
+  .order-sender {
+    font-size: 11px;
+    letter-spacing: 1px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .order-time { font-size: 11px; color: var(--muted); }
+  .order-body { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media(max-width:600px){ .order-body { grid-template-columns: 1fr; } }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group.full { grid-column: 1/-1; }
+  .field-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .field-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    outline: none;
+    width: 100%;
+    transition: border-color .2s;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .order-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .payment-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+  .badge-paga { background: rgba(76,175,125,.15); color: var(--green); }
+  .badge-pagado { background: rgba(91,141,238,.15); color: var(--blue); }
+  .badge-entregar { background: rgba(200,169,110,.15); color: var(--accent); }
+
+  /* ACTIONS BAR */
+  .actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .count-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .count-badge span { color: var(--accent); font-weight: 600; }
+
+  /* ENVIOS TABLE */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--surface); }
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: #1e1e1e; }
+  .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pill-pendiente { background: rgba(200,169,110,.15); color: var(--accent); }
+
+  /* SCRIPT VIEW */
+  .script-box {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #a8d8a8;
+    white-space: pre;
+    overflow-x: auto;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+  .steps { display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px; }
+  .step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .step-num {
+    min-width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0f0f0f;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-text { font-size: 14px; line-height: 1.6; color: var(--text); padding-top: 4px; }
+  .step-text strong { color: var(--accent); }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: var(--accent);
+    color: #0f0f0f;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">KRUZ</div>
+  <div class="nav-tab active" onclick="showView('parser')">📋 Parser WhatsApp</div>
+  <div class="nav-tab" onclick="showView('envios')">🚚 Envíos</div>
+  <div class="nav-tab" onclick="showView('dashboard')">📊 Dashboard</div>
+  <div class="nav-tab" onclick="showView('script')">⚙️ Configuración</div>
+</nav>
+
+<!-- ======= PARSER VIEW ======= -->
+<div id="view-parser" class="view active">
+  <div class="section-title">Parser de WhatsApp</div>
+  <div class="section-sub">Pega los mensajes del grupo y extrae los pedidos automáticamente</div>
+
+  <div class="parse-layout">
+    <div>
+      <div class="card">
+        <div class="card-title">📱 Mensajes del grupo</div>
+
+        <!-- SESSION SELECTOR -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
+          <div class="field-label" style="white-space:nowrap;">Sesión:</div>
+          <button id="sessionKevin" class="btn btn-primary btn-sm" onclick="setSession('kevin')">👤 Kevin</button>
+          <button id="sessionEyleen" class="btn btn-secondary btn-sm" onclick="setSession('eyleen')">👤 Eyleen</button>
+          <span id="sessionLabel" style="font-size:11px;color:var(--muted);">Contactos de Kevin</span>
+        </div>
+
+        <div class="card-title" style="margin-top:0;margin-bottom:8px;font-size:10px;">Remitentes a incluir</div>
+
+        <!-- KEVIN CHIPS -->
+        <div class="sender-filters" id="chipsKevin">
+          <div class="sender-chip active" data-sender="kruz wallets" onclick="this.classList.toggle('active')">Kruz Wallets</div>
+          <div class="sender-chip active" data-sender="elemental shop" onclick="this.classList.toggle('active')">Elemental Shop</div>
+          <div class="sender-chip active" data-sender="beauty and care" onclick="this.classList.toggle('active')">Beauty and Care</div>
+          <div class="sender-chip active" data-sender="amore" onclick="this.classList.toggle('active')">Amore ❤️</div>
+          <div class="sender-chip active" data-sender="kevin" onclick="this.classList.toggle('active')">Kevin</div>
+          <div class="sender-chip-add" onclick="addSender('kevin')">+ Agregar</div>
+        </div>
+
+        <!-- EYLEEN CHIPS -->
+        <div class="sender-filters" id="chipsEyleen" style="display:none;">
+          <div class="sender-chip active" data-sender="shopstar_cr" onclick="this.classList.toggle('active')">Shopstar_cr</div>
+          <div class="sender-chip active" data-sender="vargas eyleen" onclick="this.classList.toggle('active')">Vargas Eyleen</div>
+          <div class="sender-chip active" data-sender="joyería m" onclick="this.classList.toggle('active')">Joyería M</div>
+          <div class="sender-chip active" data-sender="joyeria m" onclick="this.classList.toggle('active')">Joyeria M</div>
+          <div class="sender-chip active" data-sender="amor" onclick="this.classList.toggle('active')">Amor ❤️</div>
+          <div class="sender-chip active" data-sender="onyx sports" onclick="this.classList.toggle('active')">Onyx Sports</div>
+          <div class="sender-chip-add" onclick="addSender('eyleen')">+ Agregar</div>
+        </div>
+
+        <textarea id="waInput" placeholder="Pega aquí los mensajes de WhatsApp...
+
+Ejemplo:
+[1:31 p.m., 26/3/2026] Kruz Wallets: Mary Nuñez
+7204 4277
+San Pedro San Jose
+Paga 14400
+[1:31 p.m., 26/3/2026] Kruz Wallets: Neceser negro
+[1:31 p.m., 26/3/2026] Kruz Wallets: ____"></textarea>
+
+        <div style="display:flex;gap:10px;margin-top:14px;">
+          <button class="btn btn-primary" onclick="parseMessages()">⚡ Extraer pedidos</button>
+          <button class="btn btn-secondary" onclick="clearInput()">Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="resultsPanel">
+      <div class="empty-state">
+        <div class="icon">📦</div>
+        <div>Los pedidos extraídos aparecerán aquí</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= ENVIOS VIEW ======= -->
+<div id="view-envios" class="view">
+  <div class="section-title">Envíos del día</div>
+  <div class="section-sub">Todos los pedidos listos para despachar</div>
+
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+    <button class="btn btn-secondary" onclick="showView('parser')">← Agregar desde WhatsApp</button>
+    <button class="btn btn-secondary" onclick="addManual()">+ Agregar manual</button>
+    <button class="btn btn-primary" onclick="printAllLabels()">🖨 Imprimir todas las etiquetas</button>
+    <button class="btn btn-green" onclick="exportCSV()">⬇ Exportar CSV para Sheets</button>
+    <button class="btn btn-danger" onclick="clearOrders()">🗑 Limpiar todo</button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="enviosTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>Teléfono</th>
+          <th>Dirección</th>
+          <th>Producto</th>
+          <th>Color</th>
+          <th>Grabado</th>
+          <th>Pago</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="enviosBody">
+        <tr>
+          <td colspan="11" style="text-align:center;padding:40px;color:var(--muted);">
+            No hay envíos aún — importa desde WhatsApp o agrega manualmente
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ======= DASHBOARD VIEW ======= -->
+<div id="view-dashboard" class="view">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;">
+    <div>
+      <div class="section-title" style="margin-bottom:0;">Dashboard</div>
+      <div class="section-sub" style="margin-bottom:0;">Métricas de ventas en tiempo real</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="dashTienda" class="field-input" style="max-width:180px;" onchange="loadDashboard()">
+        <option value="kruz">Kruz Wallets</option>
+        <option value="elemental">Elemental Shop</option>
+        <option value="eva">Eva Laser</option>
+        <option value="onyx">Onyx Sports</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="loadDashboard()">🔄 Actualizar</button>
+    </div>
+  </div>
+
+  <!-- DATE FILTERS -->
+  <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <div class="field-label" style="white-space:nowrap;">Desde</div>
+      <input type="date" id="dashFrom" class="field-input" style="max-width:150px;" onchange="filterDashboard()">
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <div class="field-label" style="white-space:nowrap;">Hasta</div>
+      <input type="date" id="dashTo" class="field-input" style="max-width:150px;" onchange="filterDashboard()">
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="setDateRange('month')">Este mes</button>
+    <button class="btn btn-secondary btn-sm" onclick="setDateRange('week')">Esta semana</button>
+    <button class="btn btn-secondary btn-sm" onclick="setDateRange('all')">Todo</button>
+    <span id="dashStatus" style="font-size:12px;color:var(--muted);"></span>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div id="kpiCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px;"></div>
+
+  <!-- PRODUCTS TABLE + CHART -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title">Productos vendidos</div>
+      <div id="prodTable" style="overflow-x:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Ventas por día</div>
+      <canvas id="chartDias" height="240"></canvas>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+      <div class="card-title">Estado de pedidos</div>
+      <canvas id="chartEstados" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Ingresos vs Costos vs Ganancia</div>
+      <canvas id="chartFinanzas" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ======= SCRIPT VIEW ======= -->
+<div id="view-script" class="view">
+  <div class="section-title">Configuración</div>
+  <div class="section-sub">URLs de Apps Script por tienda</div>
+
+  <div id="tiendaConfigs" style="display:flex;flex-direction:column;gap:16px;margin-bottom:28px;"></div>
+
+  <hr class="divider">
+  <div class="card-title" style="margin-top:20px;">Script de Google Apps Script</div>
+  <div class="section-sub">Pega este script en cada Apps Script de cada tienda (Ctrl+A y reemplazar todo)</div>
+  <button class="btn btn-secondary btn-sm" style="margin:10px 0 12px;" onclick="copyScript()">📋 Copiar script</button>
+  <div class="script-box" id="scriptBox"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============ STATE ============
+let orders = JSON.parse(localStorage.getItem('kruz_orders') || '[]');
+let scriptUrl = localStorage.getItem('kruz_script_url') || ''; // legacy, kept for compat
+
+// Multi-store config
+const TIENDAS = [
+  { key: 'kruz',      label: 'Kruz Wallets',   senders: ['kruz wallets'] },
+  { key: 'elemental', label: 'Elemental Shop',  senders: ['elemental shop'] },
+  { key: 'eva',       label: 'Eva Laser',       senders: ['amore', 'eva laser'] },
+  { key: 'onyx',      label: 'Onyx Sports',     senders: ['beauty and care', 'onyx sports'] },
+];
+
+function getTiendaConfig(key) {
+  const saved = JSON.parse(localStorage.getItem('kruz_tiendas') || '{}');
+  return saved[key] || { url: '', sheetId: '' };
+}
+function saveTiendaConfig(key, url, sheetId) {
+  const saved = JSON.parse(localStorage.getItem('kruz_tiendas') || '{}');
+  saved[key] = { url, sheetId };
+  localStorage.setItem('kruz_tiendas', JSON.stringify(saved));
+  // Keep legacy compat for kruz
+  if (key === 'kruz') { scriptUrl = url; localStorage.setItem('kruz_script_url', url); }
+}
+function getUrlForOrder(order) {
+  const s = (order.sender || '').toLowerCase();
+  for (const t of TIENDAS) {
+    if (t.senders.some(sen => s.includes(sen))) {
+      return getTiendaConfig(t.key).url || scriptUrl;
+    }
+  }
+  return scriptUrl;
+}
+
+const SCRIPT_CODE = `// ================================================
+// KRUZ WALLETS — Google Apps Script COMPLETO
+// Ctrl+A y pega esto reemplazando todo
+// ================================================
+
+const VENTAS_SHEET     = 'Ventas';
+const INVENTARIO_SHEET = 'Inventario';
+const PRODUCTOS_SHEET  = 'Productos';
+const START_ROW        = 3;
+
+const COL_PRODUCTO = 3; // C
+const COL_COLOR    = 4; // D
+
+const INV_COL_PRODUCTO   = 1; // A
+const INV_COL_COLOR      = 2; // B
+const INV_COL_SALIDAS    = 4; // D
+const INV_COL_DISPONIBLE = 5; // E
+
+const SHEET_ID = "1MNgdoIUyYAfnQvYdofgw6WgYrDz8YFp3-OAL8zTmLRg";
+
+function onEdit(e) {
+  try {
+    const hoja = e.range.getSheet();
+    if (hoja.getName() !== VENTAS_SHEET) return;
+    if (e.range.getRow() < START_ROW) return;
+
+    const fila = e.range.getRow();
+    const col  = e.range.getColumn();
+
+    const ss       = e.source;
+    const invSheet = ss.getSheetByName(INVENTARIO_SHEET);
+    if (!invSheet) return;
+
+    const lastRow = invSheet.getLastRow();
+    if (lastRow < 2) return;
+
+    const data = invSheet.getRange(2, 1, lastRow - 1, INV_COL_DISPONIBLE).getValues();
+
+    if (col === COL_PRODUCTO) {
+      actualizarColores(hoja, fila, data);
+    }
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Error en script: ' + error.message);
+  }
+}
+
+function actualizarColores(hoja, fila, data) {
+  const producto = limpiarValor(hoja.getRange(fila, COL_PRODUCTO).getValue());
+
+  hoja.getRange(fila, COL_COLOR).clearContent().clearDataValidations();
+
+  if (!producto) return;
+
+  const coloresDisponibles = [];
+  data.forEach(function(row) {
+    const prod  = limpiarValor(row[INV_COL_PRODUCTO - 1]);
+    const color = limpiarValor(row[INV_COL_COLOR - 1]);
+    const disp  = row[INV_COL_DISPONIBLE - 1];
+    if (prod === producto && color && disp > 0) {
+      coloresDisponibles.push(color);
+    }
+  });
+
+  if (coloresDisponibles.length > 0) {
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(coloresDisponibles, true)
+      .setAllowInvalid(false)
+      .build();
+    hoja.getRange(fila, COL_COLOR).setDataValidation(rule);
+  }
+}
+
+function limpiarValor(val) {
+  return String(val || '').trim().toLowerCase();
+}
+
+function descontarInventario(ss, producto, color, cantidad) {
+  try {
+    const invSheet = ss.getSheetByName(INVENTARIO_SHEET);
+    if (!invSheet) return;
+    const lastRow = invSheet.getLastRow();
+    if (lastRow < 2) return;
+
+    const data = invSheet.getRange(2, 1, lastRow - 1, INV_COL_DISPONIBLE).getValues();
+    for (let i = 0; i < data.length; i++) {
+      const prod  = limpiarValor(data[i][INV_COL_PRODUCTO - 1]);
+      const col   = limpiarValor(data[i][INV_COL_COLOR - 1]);
+      if (prod === limpiarValor(producto) && col === limpiarValor(color)) {
+        // Sumar a Salidas (col D = col index 4)
+        const filaInv = i + 2;
+        const salidasActual = invSheet.getRange(filaInv, INV_COL_SALIDAS).getValue() || 0;
+        invSheet.getRange(filaInv, INV_COL_SALIDAS).setValue(salidasActual + (cantidad || 1));
+        break;
+      }
+    }
+  } catch(err) {
+    // No interrumpir el flujo principal si falla el inventario
+    Logger.log('Error descontando inventario: ' + err.message);
+  }
+}
+
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+
+    // ---- DASHBOARD: devuelve catálogo + ventas ----
+    if (action === 'dashboard') {
+      const ss = SpreadsheetApp.openById(SHEET_ID);
+
+      // Leer catálogo de productos
+      const prodSheet = ss.getSheetByName(PRODUCTOS_SHEET);
+      const catalog = [];
+      if (prodSheet && prodSheet.getLastRow() > 1) {
+        const prodData = prodSheet.getRange(2, 1, prodSheet.getLastRow()-1, 4).getValues();
+        prodData.forEach(function(row) {
+          if (row[0]) catalog.push({
+            producto: String(row[0]).trim(),
+            color:    String(row[1] || '').trim(),
+            precio:   row[2] || 0,
+            costo:    row[3] || 0
+          });
+        });
+      }
+
+      // Leer ventas
+      const ventasSheet = ss.getSheetByName(VENTAS_SHEET);
+      const ventas = [];
+      if (ventasSheet && ventasSheet.getLastRow() > 1) {
+        const vData = ventasSheet.getRange(2, 1, ventasSheet.getLastRow()-1, 14).getValues();
+        vData.forEach(function(row) {
+          if (!row[1]) return; // skip empty rows
+          ventas.push({
+            nombre:    String(row[1]  || ''),
+            producto:  String(row[2]  || ''),
+            color:     String(row[3]  || ''),
+            estado:    String(row[4]  || ''),
+            fecha:     row[5] ? Utilities.formatDate(new Date(row[5]), 'America/Costa_Rica', 'd/M/yyyy') : '',
+            cantidad:  row[6]  || 1,
+            costo:     row[7]  || 0,
+            precio:    row[9]  || 0,
+            ganancia:  row[11] || 0,
+            plataforma:String(row[12] || ''),
+            contacto:  String(row[13] || '')
+          });
+        });
+      }
+
+      const output = ContentService
+        .createTextOutput(JSON.stringify({ success: true, catalog: catalog, ventas: ventas }))
+        .setMimeType(ContentService.MimeType.JSON);
+      output.setHeader = function(){}; // Apps Script auto-sets CORS for GET
+      return output;
+    }
+
+    // ---- ENVIAR PEDIDOS ----
+    const raw = e.parameter.data;
+    if (!raw) {
+      return ContentService
+        .createTextOutput("Kruz API activa ✓")
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    const data   = JSON.parse(decodeURIComponent(raw));
+    const orders = data.orders || [];
+
+    const ss    = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName(VENTAS_SHEET);
+
+    orders.forEach(function(order) {
+      const lastRow = sheet.getLastRow();
+      const valuesB = sheet.getRange(1, 2, lastRow + 1, 1).getValues();
+      var primeraVacia = lastRow + 1;
+      for (var i = 0; i < valuesB.length; i++) {
+        if (valuesB[i][0] === '' || valuesB[i][0] === null) {
+          primeraVacia = i + 1;
+          break;
+        }
+      }
+      sheet.getRange(primeraVacia, 1, 1, 7).clearDataValidations();
+      sheet.getRange(primeraVacia, 1, 1, 7).setValues([[
+        "",
+        order.nombre   || "",
+        order.producto || "",
+        order.color    || "",
+        order.estado   || "Pendiente entrega",
+        order.fecha    || new Date().toLocaleDateString("es-CR"),
+        order.cantidad || 1
+      ]]);
+
+      if (order.producto && order.color) {
+        descontarInventario(ss, order.producto, order.color, order.cantidad || 1);
+      }
+    });
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: true, added: orders.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  try {
+    const raw = e.postData ? e.postData.contents : "";
+    if (!raw) throw new Error("Sin datos");
+
+    const data   = JSON.parse(raw);
+    const orders = data.orders || [];
+
+    const ss    = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName(VENTAS_SHEET);
+
+    orders.forEach(function(order) {
+      const lastRow = sheet.getLastRow();
+      const valuesB = sheet.getRange(1, 2, lastRow + 1, 1).getValues();
+      var primeraVacia = lastRow + 1;
+      for (var i = 0; i < valuesB.length; i++) {
+        if (valuesB[i][0] === '' || valuesB[i][0] === null) {
+          primeraVacia = i + 1; break;
+        }
+      }
+      sheet.getRange(primeraVacia, 1, 1, 7).clearDataValidations();
+      sheet.getRange(primeraVacia, 1, 1, 7).setValues([[
+        "", order.nombre||"", order.producto||"", order.color||"",
+        order.estado||"Pendiente entrega",
+        order.fecha||new Date().toLocaleDateString("es-CR"),
+        order.cantidad||1
+      ]]);
+      if (order.producto && order.color) {
+        descontarInventario(ss, order.producto, order.color, order.cantidad||1);
+      }
+    });
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: true, added: orders.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+
+// ============ INIT ============
+let currentSession = localStorage.getItem('kruz_session') || 'kevin';
+
+document.getElementById('scriptBox').textContent = SCRIPT_CODE;
+renderTiendaConfigs();
+if (scriptUrl && !getTiendaConfig('kruz').url) saveTiendaConfig('kruz', scriptUrl, '');
+renderEnvios();
+setSession(currentSession);
+
+const chartScript = document.createElement('script');
+chartScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+document.head.appendChild(chartScript);
+
+function renderTiendaConfigs() {
+  const container = document.getElementById('tiendaConfigs');
+  container.innerHTML = TIENDAS.map(t => {
+    const cfg = getTiendaConfig(t.key);
+    return `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">${t.label}</div>
+        <button class="btn btn-green btn-sm" onclick="sendToSheetsForTienda('${t.key}')">📤 Enviar pedidos</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="field-group" style="flex:1;min-width:200px;">
+          <div class="field-label">URL Apps Script</div>
+          <input class="field-input" id="url_${t.key}" value="${cfg.url}" placeholder="https://script.google.com/macros/s/...">
+        </div>
+        <div class="field-group" style="flex:1;min-width:200px;">
+          <div class="field-label">Sheet ID</div>
+          <input class="field-input" id="sid_${t.key}" value="${cfg.sheetId}" placeholder="ID del Google Sheet">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveTiendaFromUI('${t.key}')">💾 Guardar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveTiendaFromUI(key) {
+  const url = document.getElementById('url_' + key).value.trim();
+  const sid = document.getElementById('sid_' + key).value.trim();
+  saveTiendaConfig(key, url, sid);
+  toast(`✓ ${TIENDAS.find(t=>t.key===key).label} guardado`);
+}
+
+async function sendToSheetsForTienda(key) {
+  const cfg = getTiendaConfig(key);
+  const url = cfg.url || scriptUrl;
+  if (!url) { toast('Primero guarda la URL de ' + key); return; }
+  const tiendaOrders = orders.filter(o => {
+    const s = (o.sender||'').toLowerCase();
+    const t = TIENDAS.find(t => t.key === key);
+    return t && t.senders.some(sen => s.includes(sen));
+  });
+  if (!tiendaOrders.length) { toast('No hay pedidos de ' + TIENDAS.find(t=>t.key===key).label); return; }
+  await doSendOrders(url, tiendaOrders);
+}
+
+
+// ============ NAVIGATION ============
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  const tabs = ['parser','envios','dashboard','script'];
+  document.querySelectorAll('.nav-tab')[tabs.indexOf(id)].classList.add('active');
+  if (id === 'envios') renderEnvios();
+  if (id === 'dashboard') loadDashboard();
+}
+
+// ============ SESSION PROFILES ============
+const SESIONES = {
+  kevin: [
+    { sender: 'Kruz Wallets',   tienda: 'kruz' },
+    { sender: 'Elemental Shop', tienda: 'elemental' },
+    { sender: 'Beauty and Care',tienda: 'onyx' },
+    { sender: 'Amore',          tienda: 'eva' },
+    { sender: 'Kevin',          tienda: 'kruz' },
+  ],
+  eyleen: [
+    { sender: 'Shopstar_cr',    tienda: 'kruz' },
+    { sender: 'Eva Láser S',    tienda: 'eva' },
+    { sender: 'Joyeria M',      tienda: 'elemental' },
+    { sender: 'Amor',           tienda: 'kruz' }, // "Amor ❤️" = Kevin Cruz
+    { sender: 'Onyx Sports',    tienda: 'onyx' },
+  ]
+};
+
+// Map sender → tienda para normalizar etiquetas
+const SENDER_TIENDA_MAP = {
+  // Kevin
+  'kruz wallets':   'kruz',
+  'elemental shop': 'elemental',
+  'beauty and care':'onyx',
+  'amore':          'eva',
+  'kevin':          'kruz',
+  // Eyleen
+  'shopstar_cr':    'kruz',
+  'shopstar':       'kruz',
+  'vargas eyleen':  'eva',
+  'joyería m':      'elemental',
+  'joyeria m':      'elemental',
+  'amor':           'kruz',
+  'onyx sports':    'onyx',
+};
+
+function setSession(session) {
+  currentSession = session;
+  localStorage.setItem('kruz_session', session);
+  document.getElementById('chipsKevin').style.display  = session === 'kevin'  ? 'flex' : 'none';
+  document.getElementById('chipsEyleen').style.display = session === 'eyleen' ? 'flex' : 'none';
+  document.getElementById('sessionKevin').className  = session === 'kevin'  ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('sessionEyleen').className = session === 'eyleen' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('sessionLabel').textContent = session === 'kevin' ? 'Contactos de Kevin' : 'Contactos de Eyleen';
+}
+
+function renderSenderChips() {}
+function initSenderChips() {}
+
+
+function addSender(session) {
+  const name = prompt('Nombre del remitente (exactamente como aparece en WhatsApp):');
+  if (!name || !name.trim()) return;
+  const containerId = (session || currentSession) === 'eyleen' ? 'chipsEyleen' : 'chipsKevin';
+  const filters = document.getElementById(containerId);
+  const chip = document.createElement('div');
+  chip.className = 'sender-chip active';
+  chip.dataset.sender = name.trim().toLowerCase();
+  chip.textContent = name.trim();
+  chip.setAttribute('onclick', 'this.classList.toggle("active")');
+  filters.insertBefore(chip, filters.lastElementChild);
+}
+
+function getActiveSenders() {
+  const containerId = currentSession === 'eyleen' ? 'chipsEyleen' : 'chipsKevin';
+  return Array.from(document.querySelectorAll('#' + containerId + ' .sender-chip.active'))
+    .map(c => c.dataset.sender.toLowerCase());
+}
+
+// ============ PARSER ============
+function parseMessages() {
+  const raw = document.getElementById('waInput').value.trim();
+  if (!raw) { toast('Pega los mensajes primero'); return; }
+
+  const activeSenders = getActiveSenders();
+  const parsed = [];
+
+  // Split por línea de timestamp de WhatsApp
+  const msgRegex = /\[(\d{1,2}:\d{2}\s[ap]\.m\.,\s[\d/]+)\]\s(.+?):\s([\s\S]*?)(?=\[\d{1,2}:\d{2}|$)/g;
+  let match;
+  const messages = [];
+
+  while ((match = msgRegex.exec(raw + '\n[99:99')) !== null) {
+    messages.push({
+      time: match[1],
+      sender: match[2].trim(),
+      body: match[3].trim()
+    });
+  }
+
+  // Group consecutive messages by sender
+  const groups = [];
+  let i = 0;
+  while (i < messages.length) {
+    const m = messages[i];
+    const senderLower = m.sender.toLowerCase();
+    const matchedSender = activeSenders.find(s => senderLower.includes(s) || s.includes(senderLower.split(' ')[0].toLowerCase()));
+    if (!matchedSender) { i++; continue; }
+
+    // Collect consecutive messages from same sender
+    const group = { sender: m.sender, time: m.time, msgs: [] };
+    while (i < messages.length) {
+      const curr = messages[i];
+      const currLower = curr.sender.toLowerCase();
+      const isActive = activeSenders.find(s => currLower.includes(s) || s.includes(currLower.split(' ')[0].toLowerCase()));
+      if (!isActive || curr.sender !== messages[i > 0 ? i-1 : i].sender) {
+        // Check if it's continuation
+        if (curr.sender === m.sender) {
+          group.msgs.push(curr.body);
+          i++;
+        } else break;
+      } else if (curr.sender === m.sender) {
+        group.msgs.push(curr.body);
+        i++;
+      } else break;
+    }
+    if (group.msgs.length > 0) groups.push(group);
+  }
+
+  // Now parse each message individually as an order block
+  // An order = first message has customer info, next has product, next has separator
+  const senderMsgs = {};
+  messages.forEach(m => {
+    const senderLower = m.sender.toLowerCase();
+    const matched = activeSenders.find(s => senderLower.includes(s) || s.includes(senderLower.split(' ')[0].toLowerCase()));
+    if (!matched) return;
+    if (!senderMsgs[m.sender]) senderMsgs[m.sender] = [];
+    senderMsgs[m.sender].push({ time: m.time, body: m.body });
+  });
+
+  // Parse order blocks per sender
+  Object.entries(senderMsgs).forEach(([sender, msgs]) => {
+    let j = 0;
+    while (j < msgs.length) {
+      const msg = msgs[j];
+      // Skip separators (____) and headers
+      if (isSeparator(msg.body) || isHeader(msg.body)) { j++; continue; }
+
+      // Check if this looks like customer info (has phone-like pattern)
+      const customerInfo = parseCustomerBlock(msg.body);
+      if (customerInfo) {
+        const order = { ...customerInfo, sender, time: msg.time };
+        // Next message = product
+        if (j+1 < msgs.length && !isSeparator(msgs[j+1].body) && !isHeader(msgs[j+1].body)) {
+          const prodInfo = parseProduct(msgs[j+1].body);
+          order.producto = prodInfo.name;
+          order.color = prodInfo.color;
+          order.grabado = prodInfo.grabado;
+          j += 2;
+        } else j++;
+        // Skip links and separators
+        while (j < msgs.length && (isSeparator(msgs[j].body) || isLink(msgs[j].body))) j++;
+        order.fecha = extractDate(order.time);
+        order.cantidad = 1;
+        order.estado = 'Pendiente entrega';
+        order.id = Date.now() + Math.random();
+        parsed.push(order);
+      } else j++;
+    }
+  });
+
+  if (parsed.length === 0) {
+    toast('No se encontraron pedidos con los remitentes seleccionados');
+    return;
+  }
+
+  showResults(parsed);
+  toast(`✓ ${parsed.length} pedido${parsed.length > 1 ? 's' : ''} encontrado${parsed.length > 1 ? 's' : ''}`);
+}
+
+function isSeparator(body) {
+  return /^[_\-=\s]{2,}$/.test(body.trim()) || body.trim() === '';
+}
+
+function isHeader(body) {
+  return /^envios\s/i.test(body.trim());
+}
+
+function isLink(body) {
+  return /^https?:\/\//i.test(body.trim());
+}
+
+function parseCustomerBlock(body) {
+  const lines = body.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return null;
+
+  // Look for phone number in any line
+  const phoneIdx = lines.findIndex(l => /\d[\d\s]{6,}/.test(l));
+  if (phoneIdx === -1) return null;
+
+  const nombre = lines[0];
+  const telefono = lines[phoneIdx].replace(/\s/g, '');
+  const addressLines = [];
+
+  for (let i = phoneIdx + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^(paga|ya pago|solo entregar|puede recibir|pago)/i.test(l)) break;
+    addressLines.push(l);
+  }
+
+  const pagaLine = lines.find(l => /^(paga|ya pago|solo entregar|puede recibir)/i.test(l));
+  let pago = '';
+  let pagaValor = '';
+
+  if (pagaLine) {
+    if (/ya pago/i.test(pagaLine)) { pago = 'Ya pagó'; pagaValor = 'Ya pagó'; }
+    else if (/solo entregar/i.test(pagaLine)) { pago = 'Solo entregar'; pagaValor = 'Solo entregar'; }
+    else {
+      const num = pagaLine.match(/[\d,]+/);
+      pago = num ? '₡' + num[0] : pagaLine;
+      pagaValor = num ? num[0] : '';
+    }
+  }
+
+  const notaLine = lines.find(l => /puede recibir/i.test(l));
+
+  return {
+    nombre,
+    telefono,
+    direccion: addressLines.join(', '),
+    pago,
+    pagaValor,
+    nota: notaLine || ''
+  };
+}
+
+function parseProduct(body) {
+  const parts = body.split(',').map(p => p.trim());
+  let name = parts[0] || body;
+  let color = '';
+  let grabado = '';
+
+  // Try to match against known catalog first
+  const matched = matchProductFromCatalog(name);
+  if (matched) {
+    name  = matched.producto;
+    color = matched.color || '';
+  } else {
+    // Fallback: extract color from known list
+    const colors = ['negro','cafe oscuro','cafe claro','café oscuro','café claro','cafe','café','claro','oscuro','blanco','azul','rojo','verde','rosa','morado','gris','beige','nude','terracota','vino'];
+    for (const c of colors) {
+      if (name.toLowerCase().includes(c)) {
+        color = c;
+        name = name.replace(new RegExp(c, 'i'), '').trim().replace(/\s+/g, ' ').replace(/[,\s]+$/, '');
+        break;
+      }
+    }
+  }
+
+  // Grabado detection
+  if (body.toLowerCase().includes('grabado')) {
+    grabado = 'Sí';
+    const grabMatch = body.match(/grabado[,\s]+([A-Za-z]{1,5})/i);
+    if (grabMatch) grabado = grabMatch[1].toUpperCase();
+  }
+  if (!grabado) {
+    const initials = body.match(/\b([A-Z]{2,4})\s*$/);
+    if (initials && initials[1] !== name.trim().toUpperCase().slice(0,4)) {
+      grabado = initials[1];
+      name = name.replace(initials[0], '').trim();
+    }
+  }
+
+  return { name: name.trim(), color: color.trim(), grabado };
+}
+
+// ---- Fuzzy product matcher ----
+function matchProductFromCatalog(raw) {
+  const catalog = JSON.parse(localStorage.getItem('kruz_catalog') || '[]');
+  if (!catalog.length) return null;
+
+  const input = normalizeStr(raw);
+
+  // 1. Try exact match on "producto color"
+  for (const item of catalog) {
+    const full = normalizeStr(item.producto + ' ' + item.color);
+    if (input === full) return item;
+  }
+
+  // 2. Try product-only exact match (color might be separate)
+  for (const item of catalog) {
+    if (normalizeStr(item.producto) === input) return item;
+  }
+
+  // 3. Fuzzy: check if input contains enough of the product name
+  let bestMatch = null;
+  let bestScore = 0;
+  for (const item of catalog) {
+    const score = fuzzyScore(input, normalizeStr(item.producto + ' ' + item.color));
+    if (score > bestScore && score > 0.65) {
+      bestScore = score;
+      bestMatch = item;
+    }
+  }
+  return bestMatch;
+}
+
+function normalizeStr(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function fuzzyScore(a, b) {
+  // Token-based similarity: how many tokens of 'a' appear in 'b'
+  const tokensA = a.split(' ').filter(t => t.length > 1);
+  const tokensB = b.split(' ');
+  if (!tokensA.length) return 0;
+  let hits = 0;
+  for (const t of tokensA) {
+    // Allow 1-char typo tolerance
+    if (tokensB.some(tb => tb === t || levenshtein(t, tb) <= 1)) hits++;
+  }
+  return hits / tokensA.length;
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+
+function extractDate(timeStr) {
+  const m = timeStr.match(/(\d+\/\d+\/\d+)/);
+  return m ? m[1] : new Date().toLocaleDateString('es-CR');
+}
+
+// ============ RESULTS ============
+function showResults(parsed) {
+  const panel = document.getElementById('resultsPanel');
+  panel.innerHTML = `
+    <div class="actions-bar">
+      <div class="count-badge"><span>${parsed.length}</span> pedidos encontrados</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="showView('envios')">Ver todos los envíos</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmImport()">✓ Importar todos</button>
+      </div>
+    </div>
+    <div class="results-grid" id="parsedGrid"></div>
+  `;
+
+  window._parsed = parsed;
+  const grid = document.getElementById('parsedGrid');
+
+  parsed.forEach((order, idx) => {
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    card.id = `parsed-${idx}`;
+
+    const payBadge = getPayBadge(order.pago);
+
+    card.innerHTML = `
+      <div class="order-header">
+        <span class="order-sender">${getTiendaLabel(order.sender) || order.sender}</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="order-time">${order.time}</span>
+          <button class="btn btn-danger btn-sm" onclick="removeCard(${idx})">✕ Quitar</button>
+          <button class="btn btn-green btn-sm" onclick="importOne(${idx})">+ Agregar</button>
+        </div>
+      </div>
+      <div class="order-body">
+        <div class="field-group">
+          <div class="field-label">Nombre</div>
+          <input class="field-input" id="f-nombre-${idx}" value="${order.nombre || ''}">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Teléfono</div>
+          <input class="field-input" id="f-tel-${idx}" value="${order.telefono || ''}">
+        </div>
+        <div class="field-group full">
+          <div class="field-label">Dirección</div>
+          <input class="field-input" id="f-dir-${idx}" value="${order.direccion || ''}">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Producto</div>
+          <input class="field-input" id="f-prod-${idx}" value="${order.producto || ''}">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Color</div>
+          <input class="field-input" id="f-color-${idx}" value="${order.color || ''}">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Grabado / Iniciales</div>
+          <input class="field-input" id="f-grab-${idx}" value="${order.grabado || ''}">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Pago</div>
+          <input class="field-input" id="f-pago-${idx}" value="${order.pago || ''}">
+        </div>
+        ${order.nota ? `<div class="field-group"><div class="field-label">Nota</div><input class="field-input" value="${order.nota}" readonly></div>` : ''}
+      </div>
+      <div class="order-footer">
+        <span class="payment-badge ${payBadge.cls}">${payBadge.text}</span>
+        <span style="font-size:11px;color:var(--muted);">Fecha: ${order.fecha}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function getPayBadge(pago) {
+  if (!pago) return { cls: 'badge-entregar', text: 'Sin dato' };
+  if (/ya pag/i.test(pago)) return { cls: 'badge-pagado', text: '✓ Ya pagó' };
+  if (/solo entregar/i.test(pago)) return { cls: 'badge-entregar', text: '📦 Solo entregar' };
+  return { cls: 'badge-paga', text: '💰 ' + pago };
+}
+
+function removeCard(idx) {
+  document.getElementById(`parsed-${idx}`).classList.add('removed');
+  window._parsed[idx]._removed = true;
+}
+
+function getUpdatedOrder(idx) {
+  const o = { ...window._parsed[idx] };
+  o.nombre = document.getElementById(`f-nombre-${idx}`)?.value || o.nombre;
+  o.telefono = document.getElementById(`f-tel-${idx}`)?.value || o.telefono;
+  o.direccion = document.getElementById(`f-dir-${idx}`)?.value || o.direccion;
+  o.producto = document.getElementById(`f-prod-${idx}`)?.value || o.producto;
+  o.color = document.getElementById(`f-color-${idx}`)?.value || o.color;
+  o.grabado = document.getElementById(`f-grab-${idx}`)?.value || o.grabado;
+  o.pago = document.getElementById(`f-pago-${idx}`)?.value || o.pago;
+  return o;
+}
+
+function importOne(idx) {
+  const o = getUpdatedOrder(idx);
+  o._removed = false;
+  orders.push(o);
+  saveOrders();
+  toast(`✓ ${o.nombre} agregado a envíos`);
+  document.getElementById(`parsed-${idx}`).style.borderColor = 'var(--green)';
+}
+
+function confirmImport() {
+  const toAdd = window._parsed.filter(o => !o._removed).map((o, idx) => getUpdatedOrder(idx));
+  orders.push(...toAdd);
+  saveOrders();
+  toast(`✓ ${toAdd.length} pedidos importados`);
+  showView('envios');
+}
+
+// ============ ENVIOS TABLE ============
+function renderEnvios() {
+  const tbody = document.getElementById('enviosBody');
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted);">No hay envíos aún</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = orders.map((o, i) => `
+    <tr>
+      <td style="color:var(--muted);font-size:11px;">${i+1}</td>
+      <td>
+        <strong>${o.nombre || '—'}</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${o.telefono || ''}</span><br>
+        <span style="font-size:10px;color:var(--accent);">${getTiendaLabel(o.sender)}</span>
+      </td>
+      <td style="font-size:12px;">${o.direccion || '—'}</td>
+      <td>${o.producto || '—'}</td>
+      <td>${o.color || '—'}</td>
+      <td>${o.grabado || '—'}</td>
+      <td>${o.pago || '—'}</td>
+      <td><span class="status-pill pill-pendiente">${o.estado || 'Pendiente entrega'}</span></td>
+      <td style="font-size:11px;">${o.fecha || '—'}</td>
+      <td style="display:flex;gap:6px;align-items:center;">
+        <button class="btn btn-secondary btn-sm" onclick="printLabel(${i})">🏷 Etiqueta</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteOrder(${i})">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function deleteOrder(i) {
+  if (!confirm(`¿Eliminar pedido de ${orders[i].nombre}?`)) return;
+  orders.splice(i, 1);
+  saveOrders();
+  renderEnvios();
+}
+
+function clearOrders() {
+  if (!confirm('¿Limpiar todos los envíos? Esta acción no se puede deshacer.')) return;
+  orders = [];
+  saveOrders();
+  renderEnvios();
+  toast('✓ Lista de envíos limpiada');
+}
+
+function getTiendaLabel(sender) {
+  if (!sender) return '';
+  const s = sender.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // remove accents for comparison
+  for (const [key, tiendaKey] of Object.entries(SENDER_TIENDA_MAP)) {
+    const k = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (s.includes(k)) {
+      const t = TIENDAS.find(t => t.key === tiendaKey);
+      return t ? t.label : sender;
+    }
+  }
+  return sender;
+}
+
+function getSinpeInfo(sender) {
+  const label = getTiendaLabel(sender);
+  const map = {
+    'Kruz Wallets':   { numero: '8873-6500', nombre: 'Kevin Cruz' },
+    'Eva Laser':      { numero: '7149-2904', nombre: 'Eylin Vargas' },
+    'Elemental Shop': { numero: '6331-4190', nombre: 'Kevin Cruz' },
+    'Onyx Sports':    { numero: '6487-0979', nombre: 'Eylin Vargas' },
+    'Kevin Cruz':     { numero: '6159-7180', nombre: 'Kevin Cruz' },
+  };
+  return map[label] || { numero: '', nombre: '' };
+}
+
+function printAllLabels() {
+  if (!orders.length) { toast('No hay pedidos para imprimir'); return; }
+
+  const labelsHtml = orders.map(o => {
+    const tienda = getTiendaLabel(o.sender);
+    const sinpe = getSinpeInfo(o.sender);
+
+    const pagoTexto = o.pago && !/solo entregar/i.test(o.pago) && !/ya pag/i.test(o.pago)
+      ? `<div class="lbl-pago">Monto: <strong>${o.pago}</strong></div>
+         <div class="lbl-sinpe">Sinpe: <strong>${sinpe.numero}</strong> · ${sinpe.nombre}</div>`
+      : `<div class="lbl-pago lbl-ok">✓ ${/ya pag/i.test(o.pago||'') ? 'Ya pagó' : 'Solo entregar'}</div>`;
+
+    const grabadoTexto = o.grabado
+      ? `<div class="lbl-grabado">Grabado: <strong>${o.grabado}</strong></div>` : '';
+
+    return `
+      <div class="label">
+        <div class="lbl-header">
+          <div class="lbl-tienda">${tienda}</div>
+          <div class="lbl-fecha">${o.fecha || ''}</div>
+        </div>
+        <div class="lbl-body">
+          <div class="lbl-nombre">${o.nombre || '—'}</div>
+          <div class="lbl-tel">📞 ${o.telefono || '—'}</div>
+          <div class="lbl-dir">📍 ${o.direccion || '—'}</div>
+          <hr class="lbl-divider">
+          ${grabadoTexto}
+          ${pagoTexto}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Etiquetas — ${new Date().toLocaleDateString('es-CR')}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #fff; }
+
+  @page {
+    size: 101mm 101mm;
+    margin: 0;
+  }
+
+  .label {
+    width: 101mm;
+    height: 101mm;
+    border: 2px solid #111;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+    page-break-inside: avoid;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .lbl-header {
+    border-bottom: 2px solid #111;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .lbl-tienda {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 2px;
+    color: #111;
+  }
+  .lbl-fecha { font-size: 12px; color: #555; }
+  .lbl-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex: 1;
+    justify-content: center;
+  }
+  .lbl-nombre { font-size: 22px; font-weight: 700; color: #111; line-height: 1.2; }
+  .lbl-tel { font-size: 15px; color: #333; }
+  .lbl-dir { font-size: 13px; color: #333; border-left: 3px solid #111; padding-left: 8px; line-height: 1.5; }
+  .lbl-grabado { font-size: 14px; color: #333; }
+  .lbl-divider { border: none; border-top: 1px dashed #bbb; margin: 2px 0; }
+  .lbl-pago { font-size: 16px; font-weight: 700; color: #111; }
+  .lbl-sinpe { font-size: 13px; color: #444; }
+  .lbl-ok { color: #2a7a4f; }
+
+  .no-print {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+  }
+  .btn-print {
+    padding: 12px 28px;
+    background: #111;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head><body>
+${labelsHtml}
+<div class="no-print">
+  <button class="btn-print" onclick="window.print()">🖨 Imprimir ${orders.length} etiqueta${orders.length > 1 ? 's' : ''}</button>
+</div>
+</body></html>`);
+  win.document.close();
+}
+
+function printLabel(i) {
+  const o = orders[i];
+  const tienda = getTiendaLabel(o.sender);
+  const sinpe = getSinpeInfo(o.sender);
+
+  const pagoTexto = o.pago && !/solo entregar/i.test(o.pago) && !/ya pag/i.test(o.pago)
+    ? `<div class="lbl-pago">💰 Monto a cobrar: <strong>${o.pago}</strong></div>
+       <div class="lbl-sinpe">
+         📱 Sinpe Móvil: <strong>${sinpe.numero}</strong> · ${sinpe.nombre}
+       </div>`
+    : `<div class="lbl-pago" style="color:#4caf7d;">✓ ${/ya pag/i.test(o.pago) ? 'Ya pagó' : 'Solo entregar'}</div>`;
+
+  const grabadoTexto = o.grabado
+    ? `<div class="lbl-grabado">✏️ Grabado: <strong>${o.grabado}</strong></div>` : '';
+
+  const win = window.open('', '_blank', 'width=600,height=500');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Etiqueta — ${o.nombre}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  .label {
+    width: 90mm;
+    border: 2px solid #111;
+    border-radius: 10px;
+    overflow: hidden;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .lbl-header {
+    background: transparent;
+    color: #111;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #111;
+  }
+  .lbl-tienda {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: #111;
+  }
+  .lbl-fecha { font-size: 11px; color: #555; }
+  .lbl-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .lbl-nombre { font-size: 20px; font-weight: 700; color: #111; }
+  .lbl-tel { font-size: 13px; color: #555; }
+  .lbl-dir { font-size: 13px; color: #333; border-left: 3px solid #111; padding-left: 10px; }
+  .lbl-producto { font-size: 14px; font-weight: 600; color: #111; }
+  .lbl-grabado { font-size: 13px; color: #555; }
+  .lbl-divider { border: none; border-top: 1px dashed #ccc; margin: 4px 0; }
+  .lbl-pago { font-size: 14px; color: #111; }
+  .lbl-sinpe { font-size: 13px; color: #555; margin-top: 2px; }
+  @media print {
+    body { margin: 0; align-items: flex-start; padding: 10mm; }
+    .no-print { display: none; }
+  }
+</style>
+</head><body>
+<div>
+  <div class="label">
+    <div class="lbl-header">
+      <div class="lbl-tienda">${tienda}</div>
+      <div class="lbl-fecha">${o.fecha || ''}</div>
+    </div>
+    <div class="lbl-body">
+      <div class="lbl-nombre">${o.nombre || '—'}</div>
+      <div class="lbl-tel">📞 ${o.telefono || '—'}</div>
+      <div class="lbl-dir">📍 ${o.direccion || '—'}</div>
+      <hr class="lbl-divider">
+      ${grabadoTexto}
+      <hr class="lbl-divider">
+      ${pagoTexto}
+    </div>
+  </div>
+  <div class="no-print" style="text-align:center;margin-top:16px;">
+    <button onclick="window.print()" style="padding:10px 28px;background:#111;color:#c8a96e;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:sans-serif;">
+      🖨 Imprimir etiqueta
+    </button>
+  </div>
+</div>
+</body></html>`);
+  win.document.close();
+}
+
+function addManual() {
+  const nombre = prompt('Nombre del cliente:');
+  if (!nombre) return;
+  const order = {
+    nombre,
+    telefono: prompt('Teléfono:') || '',
+    direccion: prompt('Dirección:') || '',
+    producto: prompt('Producto:') || '',
+    color: prompt('Color:') || '',
+    grabado: prompt('Grabado/iniciales (dejar vacío si no):') || '',
+    pago: prompt('Pago (ej: ₡14400 / Solo entregar / Ya pagó):') || '',
+    fecha: new Date().toLocaleDateString('es-CR'),
+    estado: 'Pendiente entrega',
+    cantidad: 1,
+    id: Date.now()
+  };
+  orders.push(order);
+  saveOrders();
+  renderEnvios();
+  toast(`✓ ${nombre} agregado`);
+}
+
+// ============ EXPORT CSV ============
+function exportCSV() {
+  if (!orders.length) { toast('No hay pedidos para exportar'); return; }
+  const headers = ['Nombre Cliente','Producto','Color','Estado','Fecha del pedido','Cantidad'];
+  const rows = orders.map(o => [
+    o.nombre || '',
+    o.producto || '',
+    o.color || '',
+    o.estado || 'Pendiente entrega',
+    o.fecha || '',
+    o.cantidad || 1
+  ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kruz-envios-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('✓ CSV descargado');
+}
+
+// ============ APPS SCRIPT ============
+function saveScriptUrl() {
+  // Legacy — now handled per tienda
+  const url = document.getElementById('scriptUrl')?.value?.trim();
+  if (url) { saveTiendaConfig('kruz', url, ''); toast('✓ URL guardada'); }
+}
+
+async function sendToSheets() {
+  if (!orders.length) { toast('No hay pedidos para enviar'); return; }
+  let sent = 0;
+  for (const t of TIENDAS) {
+    const cfg = getTiendaConfig(t.key);
+    const url = cfg.url || (t.key === 'kruz' ? scriptUrl : '');
+    if (!url) continue;
+    const sub = orders.filter(o => {
+      const tiendaDeOrden = getTiendaKeyFromSender(o.sender);
+      return tiendaDeOrden === t.key;
+    });
+    if (sub.length) { await doSendOrders(url, sub); sent += sub.length; }
+  }
+  if (sent) toast(`✓ ${sent} pedidos enviados`);
+  else toast('Configura las URLs de cada tienda primero');
+}
+
+function getTiendaKeyFromSender(sender) {
+  if (!sender) return 'kruz';
+  const s = sender.toLowerCase();
+  for (const [key, tiendaKey] of Object.entries(SENDER_TIENDA_MAP)) {
+    if (s.includes(key)) return tiendaKey;
+  }
+  return 'kruz';
+}
+
+async function doSendOrders(url, orderList) {
+  toast(`⏳ Enviando ${orderList.length} pedidos...`);
+  // Enviar en lotes de 10 via POST (sin límite de URL)
+  const batchSize = 10;
+  let enviados = 0;
+  for (let i = 0; i < orderList.length; i += batchSize) {
+    const batch = orderList.slice(i, i + batchSize);
+    try {
+      const payload = { orders: batch.map(o => ({
+        nombre: o.nombre || '', producto: o.producto || '',
+        color: o.color || '', estado: o.estado || 'Pendiente entrega',
+        fecha: o.fecha || new Date().toLocaleDateString('es-CR'),
+        cantidad: o.cantidad || 1
+      }))};
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success) enviados += json.added || batch.length;
+      await new Promise(r => setTimeout(r, 500));
+    } catch(e) {
+      console.error('Error en lote:', e);
+    }
+    toast(`⏳ Enviando... ${Math.min(i+batchSize, orderList.length)}/${orderList.length}`);
+  }
+  toast(`✓ ${enviados} pedidos enviados a Sheets`);
+}
+
+
+// ============ DASHBOARD ============
+let dashData = [];
+let dashCharts = {};
+let allDashData = [];
+
+function setDateRange(preset) {
+  const now = new Date();
+  let from, to;
+  if (preset === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  } else if (preset === 'week') {
+    const day = now.getDay();
+    from = new Date(now); from.setDate(now.getDate() - day);
+    to   = new Date(now); to.setDate(from.getDate() + 6);
+  } else {
+    document.getElementById('dashFrom').value = '';
+    document.getElementById('dashTo').value = '';
+    filterDashboard(); return;
+  }
+  document.getElementById('dashFrom').value = from.toISOString().slice(0,10);
+  document.getElementById('dashTo').value   = to.toISOString().slice(0,10);
+  filterDashboard();
+}
+
+async function loadDashboard() {
+  const tiendaKey = document.getElementById('dashTienda')?.value || 'kruz';
+  const cfg = getTiendaConfig(tiendaKey);
+  const url = cfg.url || (tiendaKey === 'kruz' ? scriptUrl : '');
+  document.getElementById('dashStatus').textContent = 'Cargando...';
+  if (url) {
+    try {
+      const res = await fetch(url + '?action=dashboard');
+      const json = await res.json();
+      if (json.catalog) localStorage.setItem('kruz_catalog', JSON.stringify(json.catalog));
+      allDashData = json.ventas?.length ? json.ventas : orders;
+      document.getElementById('dashStatus').textContent =
+        json.ventas?.length ? `✓ ${json.ventas.length} pedidos · ${(json.catalog||[]).length} productos` : 'Usando datos locales';
+    } catch(e) {
+      allDashData = orders;
+      document.getElementById('dashStatus').textContent = 'Datos locales (sin conexión al script)';
+    }
+  } else {
+    allDashData = orders;
+    document.getElementById('dashStatus').textContent = 'Configura la URL del script en ⚙️';
+  }
+  if (!document.getElementById('dashFrom').value) setDateRange('month');
+  else filterDashboard();
+}
+
+function filterDashboard() {
+  const from = document.getElementById('dashFrom').value;
+  const to   = document.getElementById('dashTo').value;
+  if (!from && !to) { renderDashboard(allDashData); return; }
+  const filtered = allDashData.filter(o => {
+    if (!o.fecha) return false;
+    let d;
+    if (o.fecha.includes('-')) d = new Date(o.fecha);
+    else { const [day,mon,yr] = o.fecha.split('/'); d = new Date(yr, mon-1, day); }
+    if (isNaN(d)) return true;
+    const ds = d.toISOString().slice(0,10);
+    if (from && ds < from) return false;
+    if (to   && ds > to)   return false;
+    return true;
+  });
+  renderDashboard(filtered);
+}
+
+function renderDashboard(data) {
+  if (!data.length) {
+    document.getElementById('kpiCards').innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">
+        <div style="font-size:40px;margin-bottom:12px;">📊</div>
+        Sin datos para el período seleccionado
+      </div>`;
+    ['chartDias','chartEstados','chartFinanzas'].forEach(id => {
+      if (dashCharts[id]) { dashCharts[id].destroy(); delete dashCharts[id]; }
+    });
+    document.getElementById('prodTable').innerHTML = '';
+    return;
+  }
+
+  const totalPedidos = data.length;
+  const ingresos     = data.reduce((s,o) => s + (parseFloat(o.precio)||0), 0);
+  const costos       = data.reduce((s,o) => s + (parseFloat(o.costo)||0), 0);
+  const ganancia     = data.reduce((s,o) => s + (parseFloat(o.ganancia)||0), 0) || (ingresos - costos);
+  const promedio     = totalPedidos ? ingresos / totalPedidos : 0;
+  const fmt = n => '₡' + Math.round(n).toLocaleString('es-CR');
+
+  document.getElementById('kpiCards').innerHTML = [
+    { label: 'Pedidos',       value: totalPedidos, icon: '📦', color: 'var(--accent)' },
+    { label: 'Ingresos',      value: fmt(ingresos), icon: '💰', color: 'var(--blue)' },
+    { label: 'Ganancia neta', value: fmt(ganancia), icon: '📈', color: 'var(--green)' },
+    { label: 'Costo total',   value: fmt(costos),   icon: '🏷',  color: '#e8a838' },
+    { label: 'Promedio',      value: fmt(promedio), icon: '📊', color: '#a78bfa' },
+  ].map(k => `
+    <div class="card" style="border-color:${k.color}30;">
+      <div style="font-size:24px;margin-bottom:6px;">${k.icon}</div>
+      <div style="font-size:22px;font-weight:700;color:${k.color};font-family:'Bebas Neue',sans-serif;letter-spacing:1px;">${k.value}</div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;">${k.label}</div>
+    </div>`).join('');
+
+  // Products table
+  const prods = {};
+  data.forEach(o => {
+    const key = [o.producto, o.color].filter(Boolean).join(' · ') || 'Sin producto';
+    if (!prods[key]) prods[key] = { cant: 0, ingreso: 0 };
+    prods[key].cant++;
+    prods[key].ingreso += parseFloat(o.precio) || 0;
+  });
+  const sp = Object.entries(prods).sort((a,b) => b[1].cant - a[1].cant);
+  document.getElementById('prodTable').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);">Producto</th>
+        <th style="text-align:center;padding:6px 8px;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);">Cant</th>
+        <th style="text-align:right;padding:6px 8px;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);">Ingresos</th>
+      </tr></thead>
+      <tbody>${sp.map(([name,v]) => `
+        <tr style="border-bottom:1px solid var(--border)20;">
+          <td style="padding:7px 8px;color:var(--text);">${name}</td>
+          <td style="padding:7px 8px;text-align:center;"><span style="background:var(--accent)20;color:var(--accent);padding:2px 8px;border-radius:10px;font-weight:700;">${v.cant}</span></td>
+          <td style="padding:7px 8px;text-align:right;color:var(--green);font-weight:600;">${v.ingreso > 0 ? fmt(v.ingreso) : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  // Charts
+  const diasMap = {};
+  data.forEach(o => {
+    if (!o.fecha) return;
+    let key = o.fecha.includes('-') ? o.fecha : (() => { const [d,m,y]=o.fecha.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; })();
+    diasMap[key] = (diasMap[key]||0) + 1;
+  });
+  const diasSorted = Object.keys(diasMap).sort();
+  renderChart('chartDias','bar', diasSorted.map(d=>{const[y,m,day]=d.split('-');return`${day}/${m}`;}), diasSorted.map(d=>diasMap[d]), ['#c8a96e']);
+
+  const estados = {};
+  data.forEach(o => { const e = o.estado||'Pendiente'; estados[e]=(estados[e]||0)+1; });
+  renderChart('chartEstados','doughnut', Object.keys(estados), Object.values(estados), ['#c8a96e','#4caf7d','#e05c5c','#5b8dee','#e8a838']);
+
+  renderChart('chartFinanzas','bar', ['Ingresos','Costos','Ganancia'],
+    [Math.round(ingresos), Math.round(costos), Math.round(ganancia)], ['#5b8dee','#e05c5c','#4caf7d']);
+}
+
+function renderChart(id, type, labels, data, colors) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (dashCharts[id]) { dashCharts[id].destroy(); }
+  Chart.defaults.color = '#888';
+  dashCharts[id] = new Chart(canvas, {
+    type,
+    data: {
+      labels,
+      datasets: [{ data,
+        backgroundColor: type === 'doughnut' ? colors : data.map((_,i) => (colors[i]||colors[0])+'cc'),
+        borderColor: colors[0], borderWidth: type==='bar'?0:1, borderRadius: type==='bar'?4:0, tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: type==='doughnut' } },
+      scales: type !== 'doughnut' ? {
+        x: { grid:{color:'#2e2e2e'}, ticks:{color:'#888',font:{size:10}} },
+        y: { grid:{color:'#2e2e2e'}, ticks:{color:'#888'}, beginAtZero:true }
+      } : {}
+    }
+  });
+}
+
+// ============ UTILS ============
+function saveOrders() {
+  localStorage.setItem('kruz_orders', JSON.stringify(orders));
+}
+
+function clearInput() {
+  document.getElementById('waInput').value = '';
+  document.getElementById('resultsPanel').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📦</div>
+      <div>Los pedidos extraídos aparecerán aquí</div>
+    </div>`;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
